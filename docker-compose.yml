@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: erp
+      # 密码必须自己给：没导出 ERP_DB_PASSWORD 时 compose 直接报错，不再回落到 erp/erp
+      POSTGRES_PASSWORD: ${ERP_DB_PASSWORD:?ERP_DB_PASSWORD 未设置，见 .env.example 的生产环境段}
+      POSTGRES_DB: erp
+    ports:
+      # 5434：AI 能力层（D:\codex）占用了 5432，两个仓库各自独立启动
+      - '5434:5432'
+    volumes:
+      - erpdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U erp -d erp']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  erp-api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # 这个文件是生产部署形态：ERP_ENV 固定 prod，不再从 .env 里读，避免本机
+      # .env 的 dev 值把生产保护静默关掉。本地开发直接用 uvicorn 起，不走这个文件。
+      ERP_STORAGE: postgres
+      ERP_DATABASE_URL: postgresql+psycopg://erp:${ERP_DB_PASSWORD:?ERP_DB_PASSWORD 未设置，见 .env.example 的生产环境段}@postgres:5432/erp
+      ERP_ENV: prod
+      # 下面几项必须自己生成，出厂默认值会被 app/core/config.py 的
+      # Settings._guard_production 拦下来（进程直接起不来，不是只打日志）：
+      #   python -c "import secrets; print(secrets.token_urlsafe(32))"
+      ERP_SECRET_KEY: ${ERP_SECRET_KEY:?ERP_SECRET_KEY 未设置，见 .env.example 的生产环境段}
+      # 必须与 D:\codex 的 AICRM_ERP_API_TOKEN 逐字一致，否则 AI 层同步会 401
+      ERP_SERVICE_TOKEN: ${ERP_SERVICE_TOKEN:?ERP_SERVICE_TOKEN 未设置，见 .env.example 的生产环境段}
+      ERP_BOOTSTRAP_ADMIN_PASSWORD: ${ERP_BOOTSTRAP_ADMIN_PASSWORD:?初始管理员密码未设置，见 .env.example 的生产环境段}
+      ERP_BOOTSTRAP_ADMIN_EMAIL: ${ERP_BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      ERP_SERVE_WEB: 'true'
+      ERP_SEED_DEMO: 'false'
+      ERP_CORS_ORIGINS: ${ERP_CORS_ORIGINS:-http://localhost:5175}
+    ports:
+      - '9200:9200'
+    volumes:
+      # 前端构建产物：先在宿主机跑 cd web; npm run build，容器只做托管
+      - ./web/dist:/srv/web/dist:ro
+
+volumes:
+  erpdata:

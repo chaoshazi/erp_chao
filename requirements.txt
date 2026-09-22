@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+SQLAlchemy>=2.0
+python-multipart>=0.0.9
+# Postgres 驱动：只有 ERP_STORAGE=postgres 时才需要，sqlite 模式用标准库
+psycopg[binary]>=3.1

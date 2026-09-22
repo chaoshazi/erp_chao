@@ -1,0 +1,17 @@
+[project]
+name = 'erp'
+version = '0.1.0'
+description = '自研销售 ERP 管理系统，同时向 AI 能力层暴露只读同步与受控写回接口'
+requires-python = '>=3.11'
+dependencies = [
+    'fastapi>=0.115',
+    'uvicorn>=0.30',
+    'pydantic>=2.7',
+    'pydantic-settings>=2.3',
+    'SQLAlchemy>=2.0',
+    'python-multipart>=0.0.9',
+    'psycopg[binary]>=3.1',
+]
+
+[tool.setuptools]
+packages = ['app']
